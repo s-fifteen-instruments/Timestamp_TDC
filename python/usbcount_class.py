@@ -2,14 +2,12 @@
 Script to help using the USBcounter as timestamp device. Modded from QO Lab Script, C package dependencies removed from this package,
 due to Windows compatability issue.
 """
+# Origin: QO Lab NUS, Alessandro Cere
+# Current Author: Chin Chean Lim
+# Modified Date: 06/03/2019
 
-#import glob
-#import subprocess
 import time
-#import pathlib
 import csv
-#from numpy import genfromtxt
-#from numpy import sum
 from numpy import int_
 
 import serial_device
