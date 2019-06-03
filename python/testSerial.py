@@ -1,11 +1,4 @@
-from __future__ import print_function  # Needed for compatibility with Py2
-"""
-Author: Alessandro Cere
-Created: 2017.10.16
 
-Description:
-General serial device
-"""
 import serial
 import time
 
