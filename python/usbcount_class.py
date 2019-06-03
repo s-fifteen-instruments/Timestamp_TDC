@@ -143,11 +143,20 @@ class FPGA_counter(serial_device.SerialDevice):
 # Sends serial command, assuming TTL signal.
     def timestamp_acq_python(self,t_int,signal):
         t_sleep = int(t_int) + 10
-        self.timestamp = self._getresponseTime('*RST;'+signal+';TIME'+str(t_int)+';TIMESTAMP;COUNTS?' , t_sleep )
+        self.timestamp = self._getresponseTime('*RST;'+'INPKT;'+signal+';TIME'+str(t_int)+';TIMESTAMP;COUNTS?' , t_sleep )
+        print(len(self.timestamp[::-1]))
         bytes_hex = self.timestamp[::-1].hex()
-       # print(bytes_hex)
-        bin_flip = (bin(int(bytes_hex, 16)))[2:]
-        split_bin = [bin_flip[i:i + 32] for i in range(0, len(bin_flip), 32)]
+        print(len(bytes_hex))
+        #bin_flip = (bin(int(bytes_hex, 16)))[2:]
+        split_hex = [bytes_hex[i:i + 8] for i in range(0, len(bytes_hex), 8)]
+        #split_bin = (bin(int(split_hex[i], 16)))[2:] for i in range(0, len(split_hex), 1)
+        #print(split_hex)
+        num_of_bits =32
+        scale = 32
+        #print(split_hex[0])
+        split_bin = [bin(int(split_hex[i], 16))[2:].zfill(num_of_bits) for i in range(0, len(split_hex),1)]
+        #split_bin = [bin_flip[i:i + 32] for i in range(0, len(bin_flip), 32)]
+        print(len(split_bin))
         timestamp_int = []
         pattern = []
 
