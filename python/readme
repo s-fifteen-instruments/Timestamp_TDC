@@ -8,10 +8,10 @@ Packages used:
  They work cross platform provided you set the right serial port for the USB device. The device path can be modified in
  usbcount_class with notes of how to get them across platform. In due time, this can be upgraded to automatically detect the OS.
  
- Counter_FPGA_GUI_v4 is a script that works in PAIRS mode, giving counter values of each channel plus conincident events counts.
+ Counter_FPGA_GUI is a script that works in PAIRS mode, giving counter values of each channel plus conincident events counts.
  The signal type is TTL by default, please update this script with 'ttl' or 'nim' string at the start of the script.
  
- timestamp_FPGA_v1 is a simple script that allows user to select integration time, and save a file called test.dat with the parsed
+ timestamp_FPGA is a simple script that allows user to select integration time, and save a file called test.dat with the parsed
  timestamps. This script can be upgraded to provide user-defined file path, and in future continuous appending of timestamps for
  continuous reads.
  
@@ -21,5 +21,3 @@ Packages used:
  
  Debug Scripts:
  testSerial is a script to check if serial port path is correct.
- testSerialDevice i a script to check if the serial setup and class file are working correctly.
- 
