@@ -19,7 +19,7 @@ class SerialDevice(serial.Serial):
     inherited from the generic serial one.
     """
 
-    def __init__(self, device_path=None, timeout=.2):
+    def __init__(self, device_path=None, timeout=0.2):
         """
         Initializes the USB device.
         It requires the full path to the serial device as arguments
@@ -27,6 +27,10 @@ class SerialDevice(serial.Serial):
         try:
             serial.Serial.__init__(self, device_path, timeout)
             self.timeout = timeout
+            self.baudrate = 57600
+            self.stopbits = serial.STOPBITS_ONE
+            self.bytesize = serial.EIGHTBITS
+            self.parity = serial.PARITY_NONE
             self._reset_buffers()
         except SerialException:
             print('Connection failed')
@@ -62,10 +66,34 @@ class SerialDevice(serial.Serial):
         self._reset_buffers()
         self.write((cmd + '\n').encode())
         #self._reset_buffers()
-        time.sleep(t_sleep/1000)
-        Buffer_length = self.in_waiting
-        print(str(Buffer_length) + " Bytes Recorded")
-        return self.read(Buffer_length)
+
+        # time.sleep(0.0015)
+        # Buffer_length = self.in_waiting
+        # memory1 = self.read(Buffer_length)
+        # Rlength1 = len(memory1)
+        # time.sleep(0.001)
+        # Buffer_length = self.in_waiting
+        # memory2 = self.read(Buffer_length)
+        # time.sleep(0.001)
+        # Buffer_length = self.in_waiting
+        # memory3 = self.read(Buffer_length)
+        # memory = memory1+memory2+memory3
+        # Rlength3 = len(memory3)
+        # Rlength2 = len(memory2)
+        #Buffer_length = 2000000
+        memory = b''
+        time0 = time.time()
+        while (time.time() - time0 < 2):  # Read data for 5 seconds
+            Buffer_length = self.in_waiting
+            memory = memory + self.read(Buffer_length)
+            #print(memory)
+            #time.sleep(0.0001)
+        Rlength = len(memory)
+        print(str(Rlength) + " Bytes Recorded")
+        #print(memory)
+        #print(str(Rlength2) + " Bytes Recorded")
+        #print(str(Rlength3) + " Bytes Recorded")
+        return memory
 
     def help(self):
         """
