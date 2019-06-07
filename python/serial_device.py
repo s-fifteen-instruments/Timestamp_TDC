@@ -27,7 +27,7 @@ class SerialDevice(serial.Serial):
         try:
             serial.Serial.__init__(self, device_path, timeout)
             self.timeout = timeout
-            self.baudrate = 57600
+            self.baudrate = 115200
             self.stopbits = serial.STOPBITS_ONE
             self.bytesize = serial.EIGHTBITS
             self.parity = serial.PARITY_NONE
@@ -40,59 +40,21 @@ class SerialDevice(serial.Serial):
         self.reset_output_buffer()
 
     def _getresponse(self, cmd):
-        """
-        function to send commands and read the response of the device.
-        it contains a workaroud for the 'Unknown command' problem.
-        Make sure that the command implies a reply, otherwise...
-
-        :param command: string containing the command.
-        :return: the reply of the device,
-        only the first line and stripped of decorations
-        """
         self._reset_buffers()
         self.write((cmd + '\n').encode())
         return self.readlines()
 
     def _getresponseTime(self, cmd, t_sleep):
-        """
-        function to send commands and read the response of the device.
-        it contains a workaroud for the 'Unknown command' problem.
-        Make sure that the command implies a reply, otherwise...
-
-        :param command: string containing the command.
-        :return: the reply of the device,
-        only the first line and stripped of decorations
-        """
+        # this function bypass the termination character (since there is none for timestamp mode), streams data from device for the integration time.
         self._reset_buffers()
         self.write((cmd + '\n').encode())
-        #self._reset_buffers()
-
-        # time.sleep(0.0015)
-        # Buffer_length = self.in_waiting
-        # memory1 = self.read(Buffer_length)
-        # Rlength1 = len(memory1)
-        # time.sleep(0.001)
-        # Buffer_length = self.in_waiting
-        # memory2 = self.read(Buffer_length)
-        # time.sleep(0.001)
-        # Buffer_length = self.in_waiting
-        # memory3 = self.read(Buffer_length)
-        # memory = memory1+memory2+memory3
-        # Rlength3 = len(memory3)
-        # Rlength2 = len(memory2)
-        #Buffer_length = 2000000
         memory = b''
         time0 = time.time()
-        while (time.time() - time0 < 2):  # Read data for 5 seconds
+        while (time.time() - time0 < t_sleep):  # Stream data for duration of integration time plus some delay set in usbcount_class.
             Buffer_length = self.in_waiting
             memory = memory + self.read(Buffer_length)
-            #print(memory)
-            #time.sleep(0.0001)
         Rlength = len(memory)
         print(str(Rlength) + " Bytes Recorded")
-        #print(memory)
-        #print(str(Rlength2) + " Bytes Recorded")
-        #print(str(Rlength3) + " Bytes Recorded")
         return memory
 
     def help(self):

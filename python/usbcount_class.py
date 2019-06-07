@@ -4,7 +4,7 @@ due to Windows compatability issue.
 """
 # Origin: QO Lab NUS, Alessandro Cere
 # Current Author: Chin Chean Lim
-# Modified Date: 06/03/2019
+# Modified Date: 07/06/2019
 
 import time
 import csv
@@ -18,7 +18,8 @@ class FPGA_counter(serial_device.SerialDevice):
     def __init__(self, device: object = None) -> object:
         if device is None:
             try:
-                device = 'COM4'#'/dev/ttyS2'   # set correct serial address, note the difference in Windows and Unix environment.
+                device = 'COM4'
+                #'/dev/ttyS2'   # set correct serial address, note the difference in Windows and Unix environment.
                 # In Windows it is usually COM(x), in MAC /dev/tty.usbmodemTDC1..., in Ubuntu /dev/serial/by-id/usb-S-Fifteen_Instruments.......
                 # In Linux, the path changes quite often and it is easier to just check the path by id, note line above
                 # Please update this before you do anything.
@@ -142,58 +143,26 @@ class FPGA_counter(serial_device.SerialDevice):
 
 # Sends serial command, assuming TTL signal.
     def timestamp_acq_python(self,t_int,signal):
-        #t_sleep = int(t_int) + 10
-        #t_int = 0.0001
-        #t_sleep = int(t_int) + 10
-        t_sleep = int(t_int) + 10
+        t_sleep = int(t_int)/1000 + 0.01  # waiting time in integration time (seconds) + 0.01 s
         self.timestamp = self._getresponseTime('*RST;'+'INPKT;'+signal+';TIME'+str(t_int)+';TIMESTAMP;COUNTS?' , t_sleep )
-        #print(len(self.timestamp[::-1]))
         bytes_hex = self.timestamp[::-1].hex()
-        #print(len(bytes_hex))
         split_hex = [bytes_hex[i:i + 8] for i in range(0, len(bytes_hex), 8)]
-        # 1 hex nibble is 4 bits.
+        # 1 hex nibble is 4 bits. 4 hex for 1 event. code above split the long messages into individual events.
         num_of_bits =32
         scale = 32
         # Turning 8 nibbles to 32 bits, padding zeros.
         split_bin = [bin(int(split_hex[i], 16))[2:].zfill(num_of_bits) for i in range(0, len(split_hex),1)]
-        #print(len(split_bin))
         timestamp_int = []
         pattern = []
 
 
-# Combines lists into a table for easy processing.
+# Sends timestamp in ns
         for i in range(len(split_bin)):
-            timestamp_int.append(int(split_bin[i][:27], 2) * 2)
-            pattern.append(split_bin[i][27:])
-#        self._table = zip(pattern, timestamp_int)
-#        self._table.append(zip(pattern, timestamp_int))
-# Writes in CSV format.
+            timestamp_int.append(int(split_bin[i][:27], 2) * 2) # making a list of time events in units of ns.
+            pattern.append(split_bin[i][27:])   # signal pattern identified by timestamp
         return timestamp_int,pattern
 
-    # def timestamp_single_acq_python(self, t_int, signal):
-    #     t_sleep = int(t_int) + 10
-    #     self.timestamp = self._getresponseTime('*RST;' + signal + ';TIME' + str(t_int) + ';TIMESTAMP;COUNTS?',
-    #                                                t_sleep)
-    #     bytes_hex = self.timestamp[::-1].hex()
-    #         # print(bytes_hex)
-    #     bin_flip = (bin(int(bytes_hex, 16)))[2:]
-    #     split_bin = [bin_flip[i:i + 32] for i in range(0, len(bin_flip), 32)]
-    #     timestamp_int = []
-    #     pattern = []
-    #
-    #         # Combines lists into a table for easy processing.
-    #     for i in range(len(split_bin)):
-    #             timestamp_int.append(int(split_bin[i][:27], 2) * 2)
-    #             pattern.append(split_bin[i][27:])
-    #     self._table = zip(pattern, timestamp_int)
-    #
-    #     # Writes in CSV format.
-    #     with open('test.dat', 'w') as csvFile:
-    #       writer = csv.writer(csvFile, delimiter=' ')
-    #       writer.writerows(self._table)
-    #       csvFile.close()
-    #     return self._table
-
+#  Functions below for g2 calculation for non-overlapping signals, modification of this code in progress.
     # @property
     # def maxbins(self):
     #     """ Set the number of bins for the g2"""

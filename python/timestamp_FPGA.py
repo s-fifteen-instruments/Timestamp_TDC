@@ -1,27 +1,30 @@
 
 
 """
-This is a script that provides a simple GUI to take a snapshot of the signal events within the integration window.
+This is a script that provides a simple GUI to take snapshots of the signal events within the integration window.
 
 Author: Lim Chin Chean 05/2019 Modded from QO Lab Script
 
+Note: the data rate for USB read is <125 Mbps, take that into account when you are dealing with runs that has very high count rates!
+     There is some room for improvement in terms of data rate as USB 2.0 protocol should be faster than 125 Mbps, work in progress.
 """
 
 from tkinter import *
 from tkinter import ttk
 import csv
-# from qitdevices.usb_counter import *
 import usbcount_class as UC
 import numpy as np
 
 # sets the size of the font for the counters
 ft_size = 42
-
+# sets the trigger type of input signal, PLEASE CHECK THIS. 'nim' or 'ttl'
 signal_type='ttl'
 pattern_loop = []
 timestamp_loop = []
+# set path of CSV file for timestamp data. Note that the file gets overwritten when you restart the parsing.
 path = 'test1.dat'
 
+# single shot timestamp within integration time.
 def change_snap_f(*args):
     loop_flag.set(True)
     print("Integration time:" + timer_00.get() + "ms")
@@ -32,7 +35,7 @@ def change_snap_f(*args):
         writer.writerows(table)
         csvFile.close()
 
-    # Function to start the counter.
+# Function to start the parsing and concatenating timestamp lists from looped snapshots.
 def start_f(*args):
     loop_flag.set(True)
     while loop_flag.get():
@@ -41,7 +44,7 @@ def start_f(*args):
         timestamp_loop.extend(timestamp)
         root.update()
 
-    # Stop querying the counter function, writes collected parsed timestamps into csv file.
+# Stop querying the timestamp function, writes collected parsed timestamps into csv file.
 def stop_f(*args):
     loop_flag.set(False)
     table = zip(pattern_loop, timestamp_loop)
@@ -67,9 +70,6 @@ loop_flag.set(False)
 
 
 timer_00 = StringVar()
-#acc = StringVar()
-#acc = StringVar()
-#efficiency = StringVar()
 
 
 # buttons
@@ -95,42 +95,7 @@ ttk.Label(mainframe, text='Timestamp Loop + Snapshot',
 # labels
 ttk.Label(mainframe, text='Gate Time',
           font=("Helvetica", 14)).grid(column=4, row=6, sticky=(E))
-#ttk.Label(mainframe, text='Channel 2',
-#          font=("Helvetica", 28)).grid(column=1, row=3, sticky=(W, E))
-#ttk.Label(mainframe, text='Channel 3',
-#          font=("Helvetica", 28)).grid(column=1, row=4, sticky=(W, E))
-#ttk.Label(mainframe, text='Channel 4',
-#          font=("Helvetica", 28)).grid(column=1, row=5, sticky=(W, E))
-#ttk.Label(mainframe, text='Pair C1-C3',
-#          font=("Helvetica", 28)).grid(column=3, row=2, sticky=(W, E))
-#ttk.Label(mainframe, text='Pair C1-C4',
-#          font=("Helvetica", 28)).grid(column=3, row=3, sticky=(W, E))
-#ttk.Label(mainframe, text='Pair C2-C3',
-#          font=("Helvetica", 28)).grid(column=3, row=4, sticky=(W, E))
-#ttk.Label(mainframe, text='Pair C2-C4',
-#          font=("Helvetica", 28)).grid(column=3, row=5, sticky=(W, E))
 
-
-
-
-# outputs
-#ttk.Label(mainframe, textvariable=counter_00, width=7, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=2, row=2, sticky=(W, E))
-#ttk.Label(mainframe, textvariable=counter_01, width=7, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=2, row=3, sticky=(W, E))
-#ttk.Label(mainframe, textvariable=counter_02, width=7, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=2, row=4, sticky=(W, E))
-#ttk.Label(mainframe, textvariable=counter_03, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=2, row=5, sticky=(W, E))
-
-#ttk.Label(mainframe, textvariable=counter_100, width=7, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=4, row=2, sticky=(W, E))
-#ttk.Label(mainframe, textvariable=counter_101, width=7, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=4, row=3, sticky=(W, E))
-#ttk.Label(mainframe, textvariable=counter_102, width=7, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=4, row=4, sticky=(W, E))
-#ttk.Label(mainframe, textvariable=counter_103, anchor=E,
-#          font=("Helvetica", ft_size)).grid(column=4, row=5, sticky=(W, E))
 
 # padding the space surrounding all the widgets
 for child in mainframe.winfo_children():
