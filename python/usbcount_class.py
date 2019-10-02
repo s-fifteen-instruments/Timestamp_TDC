@@ -9,16 +9,14 @@ due to Windows compatability issue.
 import time
 import csv
 from numpy import int_
-
 import serial_device
 
 
 class FPGA_counter(serial_device.SerialDevice):
-
     def __init__(self, device: object = None) -> object:
         if device is None:
             try:
-                device = 'COM4'
+                device = 'COM1'
                 #'/dev/ttyS2'   # set correct serial address, note the difference in Windows and Unix environment.
                 # In Windows it is usually COM(x), in MAC /dev/tty.usbmodemTDC1..., in Ubuntu /dev/serial/by-id/usb-S-Fifteen_Instruments.......
                 # In Linux, the path changes quite often and it is easier to just check the path by id, note line above
@@ -29,34 +27,17 @@ class FPGA_counter(serial_device.SerialDevice):
             serial_device.SerialDevice.__init__(self, device)
             self.timeout = .1  # necessary for python2
         # check what mode is the device in
-        self.mode
-        self.int_time
+        #self.mode
+        #elf.int_time
 
-        #
-        # # g2 program path, not used in current package. CCLim
-        #  g2path = pathlib.Path.cwd()/'g2'
-        #  g2path = g2path.absolute()
-        #  g2path = g2path.as_posix()
-        # #print(type(g2path))
-        #  self._g2_prog = g2path
-        #  if not exists(self._g2_prog):
-        #      print('No g2 program installed!')
-        #
-        # # timestamp readevents program path ,not used in current package. CCLim
-        # self._prog = pathlib.Path.cwd() / 'usbcntfpga'/'apps'/'readevents4.exe'
-        # self._prog = self._prog.absolute()
-        # self._prog = self._prog.as_posix()
-        # #print((self._prog))
-        # if not exists(self._prog):
-        #     print('No readevents4 program installed!')
-        #
-        # # default set of parameters
-        # self._t_min = 700
-        # self._t_max = 1700
-        # self._acc_t_min = 100
-        # self._acc_t_max = 600
-        # self._binwidth = 16
-        # self._maxbins = 500
+    def startport(self, port):
+         self.closeport()
+         serial_device.SerialDevice.__init__(self, port)
+         self.int_time
+         print("Current Integration Time (ms): " +str(self._int_time))
+
+    def closeport(self):
+        self._closeport()
 
     @property
     def mode(self):
@@ -74,7 +55,6 @@ class FPGA_counter(serial_device.SerialDevice):
         if value.lower() == 'timestamp':
             self._mode = 3
             self.write(b'timestamp\n')
-
 
     @property
     def level(self):
@@ -126,159 +106,107 @@ class FPGA_counter(serial_device.SerialDevice):
         print('A timeout occured!\n')
         print(self.readlines())
 
-#     """ Functions for the timestamp mode"""
-# # Calls C-Script in readevents.c, this feature is current disabled. This does not work in Windows, yet...
-#      def _timestamp_acq(self, t_acq, out_file_buffer):
-#          """ Write the binary output to a buffer"""
-#          if self._mode != 3:
-#              print('The FPGA is set into counting mode!')
-#              return -1
-#          proc = subprocess.Popen([self._prog, '-U', self._device, '-a1', '-X'],stdout=out_file_buffer, stderr=subprocess.PIPE)
-#          time.sleep(t_acq)
-#          proc.kill()
- #       return proc.communicate()[1]
-
-# Timestamp function that is called within Python and parsed in the same environment rather than relying on existing C-script.
-# Writes it to a .dat file in CSV format.
-
 # Sends serial command, assuming TTL signal.
     def timestamp_acq_python(self,t_int,signal):
-        t_sleep = int(t_int)/1000 + 0.01  # waiting time in integration time (seconds) + 0.01 s
+        t_sleep = int(t_int)/1000 + 0.01  # waiting time in integration time (seconds) + 0.2 s
         self.timestamp = self._getresponseTime('*RST;'+'INPKT;'+signal+';TIME'+str(t_int)+';TIMESTAMP;COUNTS?' , t_sleep )
         bytes_hex = self.timestamp[::-1].hex()
-        split_hex = [bytes_hex[i:i + 8] for i in range(0, len(bytes_hex), 8)]
+        split_hex = [bytes_hex[i:i + 8] for i in range(0, len(bytes_hex), 8)][::-1]
         # 1 hex nibble is 4 bits. 4 hex for 1 event. code above split the long messages into individual events.
         num_of_bits =32
         scale = 32
         # Turning 8 nibbles to 32 bits, padding zeros.
         split_bin = [bin(int(split_hex[i], 16))[2:].zfill(num_of_bits) for i in range(0, len(split_hex),1)]
+
+# Sends timestamp in ns, this takes into account of periodic repeats after 2^27 timer clicks. Period can be changed depending on device used.
+# For TDC1 period is 2^27 * 2 ns.
+        n=0
         timestamp_int = []
         pattern = []
-
-
-# Sends timestamp in ns
+        period = 2**28
         for i in range(len(split_bin)):
-            timestamp_int.append(int(split_bin[i][:27], 2) * 2) # making a list of time events in units of ns.
+            retval = int(split_bin[i][:27], 2) * 2
+            current_time = retval + n * period
+            if len(timestamp_int) != 0:
+                if split_bin[i][27]=="0":
+                    if current_time < timestamp_int[-1]:
+                         n = n+1
+                         current_time = retval  + n*period
+                else:
+                    if retval == 7920:
+                        n = n+1
+                        current_time = retval  + n*period
+                    else:
+                        if pattern[-1][0]=="0":
+                            n = n + 1
+                        current_time = retval  + n*period
+            timestamp_int.append(current_time) # making a list of time events in units of ns.
             pattern.append(split_bin[i][27:])   # signal pattern identified by timestamp
         return timestamp_int,pattern
 
-#  Functions below for g2 calculation for non-overlapping signals, modification of this code in progress.
-    # @property
-    # def maxbins(self):
-    #     """ Set the number of bins for the g2"""
-    #     return self._maxbins
-    #
-    # @maxbins.setter
-    # def maxbins(self, value):
-    #     self._maxbins = int(value)
-    #
-    # @property
-    # def binwidth(self):
-    #     """ set the bin size for the g2"""
-    #     return self._binwidth
-    #
-    # @binwidth.setter
-    # def binwidth(self, value):
-    #     self._binwidth = int(value)
-    #
-    # def _g2_from_raw(self, in_file, out_file, maxbins=None, binwidth=None):
-    #     if maxbins is None:
-    #         maxbins = self._maxbins
-    #     if binwidth is None:
-    #         binwidth = self._binwidth
-    #
-    #     proc = subprocess.Popen([self._g2_prog, '-m', str(maxbins),
-    #                              '-t', str(binwidth),
-    #                              '-o', out_file],
-    #                             stderr=subprocess.PIPE,
-    #                             stdin=subprocess.PIPE)
-    #     outs, errs = proc.communicate(in_file)
-    #     return errs
-    #
-    # def g2_from_raw(self, in_file, out_file, maxbins=None, binwidth=None):
-    #     with open(in_file, 'rb') as in_f:
-    #         self._g2_from_raw(in_f.read(), out_file, maxbins, binwidth)
-    #
-    # @property
-    # def coincidence_range(self):
-    #     return [self._t_min, self._t_max]
-    #
-    # @coincidence_range.setter
-    # def coincidence_range(self, value):
-    #     if len(value) != 2:
-    #         print('Range should be an array [t_min, t_max]')
-    #     else:
-    #         self._t_min, self._t_max = value
-    #
-    # @property
-    # def acc_range(self):
-    #     return [self._acc_t_min, self._acc_t_max]
-    #
-    # @acc_range.setter
-    # def acc_range(self, value):
-    #     if len(value) != 2:
-    #         print('Range should be an array [t_min, t_max]')
-    #     else:
-    #         self._acc_t_min, self._acc_t_max = value
-    #
-    # def count_g2(self, t_acq, t_min=None, t_max=None,
-    #              acc_t_min=None, acc_t_max=None):
-    #     """Returns pairs and singles counts from usbcounter timestamp data.
-    #
-    #     Computes g2 between channels 1 and 2 of timestamp
-    #     and sum the coincidences within specified window
-    #
-    #     :param t_acq: acquisition time in seconds
-    #     :type t_acq: float
-    #     :param t_min: g2 peak left boundary in nanoseconds
-    #     :type t_min: int
-    #     :param t_max: g2 peak right boundary in nanoseconds
-    #     :type t_max: int
-    #     :param acc_t_min: accidental counting left boundary in nanoseconds
-    #     :type acc_t_min: int
-    #     :param acc_t_max: accidental counting right boundary in nanoseconds
-    #     :type acc_t_max: int
-    #     :returns: Ch1 counts, Ch2 counts, Pairs, estimated accidentals,
-    #               actual acq time
-    #     :rtype: {int, int, int, float, float}
-    #     """
-    #     if t_min is None:
-    #         t_min = self._t_min
-    #     if t_max is None:
-    #         t_max = self._t_max
-    #     if acc_t_min is None:
-    #         acc_t_min = self._acc_t_min
-    #     if acc_t_max is None:
-    #         acc_t_max = self._acc_t_max
-    #
-    #     # open a temporary file to store the processed g2
-    #     with NamedTemporaryFile() as f_raw, NamedTemporaryFile() as f_dat:
-    #         e = self._timestamp_acq(t_acq, f_raw)
-    #         if e == -1:
-    #             return -1
-    #         if f_raw.tell() == 0:
-    #             print('Acquired an empty file!')
-    #             return {'channel1': 0, 'channel2': 0, 'pairs': 0,
-    #                     'accidentals': 0, 'total_time': 0}, [], []
-    #         f_raw.seek(0)
-    #         self._g2_from_raw(f_raw.read(), f_dat.name)
-    #         metadata = [line.decode() for line, _ in zip(f_dat, range(2))]
-    #         dt, g2 = [col for col in genfromtxt(f_dat.name, usecols=(0, 1)).T]
-    #
-    #     # get the effective acquisition time from the processed g2 metadata
-    #     time_total = int(metadata[1].replace(',', ' ').split()[2]) * 1e-9 / 8
-    #     # get the single counts from the processed g2 metadata
-    #     s1, s2 = [int(metadata[0].replace(',', ' ').split()[i])
-    #               for i
-    #               in (2, 4)]
-    #
-    #     # calculates the pairs from the processed g2
-    #     pairs = sum(g2[(dt > t_min) & (dt < t_max)])
-    #
-    #     # estimates accidentals for the integration time-window
-    #     acc = sum(g2[(dt > acc_t_min) & (dt < acc_t_max)]) * \
-    #         (t_max - t_min) / (acc_t_max - acc_t_min)
-    #     return {'channel1': s1, 'channel2': s2, 'pairs': pairs,
-    #             'accidentals': acc, 'total_time': time_total}, dt, g2
-    #
-    #
+# Pure python g2 histogram sorting script.
+    def g2(self,timestamp_int,pattern,window,binwidth,maxbins):
+        binwidth = int(binwidth)
+        maxbins= int(maxbins)
+        maxdelay = binwidth * maxbins
+        histo = [0] * maxbins  # this stores the g2 histogram
+        histoneg = [0] * maxbins  # this stores the g2 histogram
+        cnt1 = 0
+        cnt2 = 0
+        coincidence = 0
+        list1 = []
+        list2 = []
+        t1=0
+        Norm = 0
+        for i in range(len(timestamp_int)-1):
+            t1 = timestamp_int[i]
+            # This is where the window is moved with respect to maxdelay, older values from list1 and list2 are removed during calculation.
+            # This assumes that no interesting coincidence happen beyond maxdelay.
+            while list1:
+                if (t1 - list1[0] >= maxdelay):
+                    list1.pop(0)  # remove entries that are too old
+                else:
+                    break
+            while list2:
+                if (t1 - list2[0] >= maxdelay):
+                    list2.pop(0)  # remove entries that are too old
+                else:
+                    break
+            # Populating the timebins within maxdelay.
+            for chan1time in list1:
+                 delay = t1 - chan1time
+                 histo[delay // binwidth] += 1
+                 if delay < int(window):
+                    coincidence += 1
+            for chan2time in list2:
+                 delay2 = t1 - chan2time
+                 histoneg[delay2 // binwidth] += 1
+                 if delay2 < int(window):
+                    coincidence += 1
+
+            # Channel 1 event. Append to list 1.
+            if (pattern[i] == "00001"):  # just store
+                cnt1 += 1
+                list1.append(t1)
+            # Channel 2 event, or events with simultaneous peaks.
+            if (pattern[i] == "00010") or (pattern[i] == "00011"):  # for strict g2, no need to store. just iterate through list1 and perform g2
+                if (pattern[i] == "00010"):
+                    cnt2 += 1
+                    list2.append(t1)
+                else:
+                    cnt1 += 1
+                    cnt2 += 1
+                    list1.append(t1)
+                    list2.append(t1)
+        # Calculating the norm for coincidence.
+        if cnt1==0 or cnt2==0:
+            print('Zero Counts in Channel 1 or Channel 2!')
+        else:
+            Norm = 1/(cnt1*cnt2*binwidth*1e6/t1)
+        # This assumes positive delay happens when event at Channel 2 happens after Channel 1.
+        histoN = [h*Norm for h in histo]
+        histonegN = [h*Norm for h in histoneg]
+        histonegN.reverse()
+        return histoN, histonegN, cnt1, cnt2, coincidence, binwidth, maxbins
+
+

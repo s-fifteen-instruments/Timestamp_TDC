@@ -17,12 +17,30 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
+import serial.tools.list_ports
 
 # sets the size of the font for the counters
 ft_size = 42
 # sets the trigger type of input signal, PLEASE CHECK THIS. 'nim' or 'ttl'
 signal_type='ttl'
-UC.FPGA_counter().level=signal_type
+
+
+# Stop querying the timestamp function, close device and initiate selected device in pairs mode.
+def InitDevice(*args):
+    loop_flag.set(False)
+    started = 1
+    deviceAddress = ''
+    for idx, device in enumerate(devicelist):
+        if set_ports.get() == device:
+            deviceAddress = addresslist[idx]
+    print("SelectedPort " + deviceAddress)
+    counter.startport(deviceAddress)
+    counter.mode = 'pairs'
+    print(set_ports.get(), "ready to go.")
+
+def on_closing():
+    counter.closeport()
+    root.destroy()
 
 # Function to change the integration time.
 def change_counter_f(*args):
@@ -74,7 +92,7 @@ c101_yar = [0]
 c102_yar = [0]
 c103_yar = [0]
 
-# Updates the graphs with new values, resizes the axes every loop. The x-axis is the UTC time in milliseconds.
+# Updates the graphs with new values, resizes the axes every loop. The x-axis is the UTC time in milliseconds since the epoch.
 def animate(i):
     xar.append(int(round(time.time() * 1000)))
     c00_yar.append(float(counter_00.get()))
@@ -85,7 +103,16 @@ def animate(i):
     c101_yar.append(float(counter_101.get()))
     c102_yar.append(float(counter_102.get()))
     c103_yar.append(float(counter_103.get()))
-
+    if max(xar) - xar[0] > 5000:
+        xar.pop(0)
+        c00_yar.pop(0)
+        c01_yar.pop(0)
+        c02_yar.pop(0)
+        c03_yar.pop(0)
+        c100_yar.pop(0)
+        c101_yar.pop(0)
+        c102_yar.pop(0)
+        c103_yar.pop(0)
     axes = fig.gca()
     axes.set_xlim([max(xar)-5000, max(xar)+5000])
     max_values = [max(c00_yar),max(c01_yar),max(c02_yar),max(c03_yar),max(c100_yar),max(c101_yar),max(c102_yar),max(c103_yar)]
@@ -120,17 +147,26 @@ mainframe.columnconfigure(0, weight=1)
 mainframe.rowconfigure(0, weight=1)
 
 counter = UC.FPGA_counter()
-counter.mode = 'pairs'
+#counter.level=signal_type
+#counter.mode = 'pairs'
 
-#counter.coincidence_range = [780, 1900]
-#counter.acc_range = [0, 600]
-#counter.maxbins = 1200
-#counter.binwidth = 16
-
+# Device option menu.
+ttk.Label(mainframe, text='Select Device', font=("Helvetica", 12)).grid(row=2, padx=0, pady=2, column=1)
+portslist = list(serial.tools.list_ports.comports())
+devicelist = []
+addresslist = []
+for port in portslist:
+    devicelist.append(port.device + " " + port.description)
+    addresslist.append(port.device)
+print(devicelist)
+set_ports = StringVar(mainframe)
+ports_option = ttk.OptionMenu(mainframe, set_ports, devicelist, *devicelist)
+ports_option.grid(row=7, padx=2, pady=5, column=2)
+ports_option.configure(width=30)
 loop_flag = BooleanVar()
 loop_flag.set(False)
 
-# Variables used
+# String Variables used
 counter_00 = StringVar()
 counter_00.set(format(0))
 counter_01 = StringVar()
@@ -149,10 +185,6 @@ counter_103 = StringVar()
 counter_103.set(format(0))
 
 timer_00 = StringVar()
-#acc = StringVar()
-#acc = StringVar()
-#efficiency = StringVar()
-#
 
 # Basic setup for the displayed graph.
 canvas = FigureCanvasTkAgg(fig, master=root)
@@ -168,7 +200,7 @@ line6, = ax.plot(xar, c101_yar)
 line7, = ax.plot(xar, c102_yar)
 line8, = ax.plot(xar, c103_yar)
 fig.legend(['C1', 'C2', 'C3', 'C4','P13','P14','P23','P24'], loc='upper right')
-fig.suptitle('Counts (TTL) vs Current Time in milliseconds')
+fig.suptitle('Counts (TTL) vs Current Time')
 ax.set_xlabel('Time')
 ax.set_ylabel('Counts')
 ani = animation.FuncAnimation(fig, animate, interval=100, blit=False)
@@ -178,8 +210,10 @@ ttk.Button(mainframe, text="Start", command=start_f).grid(
     column=1, row=1, sticky=W)
 ttk.Button(mainframe, text="Stop", command=stop_f).grid(
     column=2, row=1, sticky=W)
-ttk.Button(mainframe, text="Counter Change", command=change_counter_f).grid(
+ttk.Button(mainframe, text="Set Gate Time", command=change_counter_f).grid(
     column=3, row=1, sticky=W)
+ttk.Button(mainframe, text="Init Device", command=InitDevice).grid(
+    column=4, row=7, sticky=W)
 
 # controls
 time_entry = Spinbox(mainframe, width=7, from_=0.1, to=5,
@@ -210,8 +244,10 @@ ttk.Label(mainframe, text='Pair C2-C3',
           font=("Helvetica", 28)).grid(column=3, row=4, sticky=(W, E))
 ttk.Label(mainframe, text='Pair C2-C4',
           font=("Helvetica", 28)).grid(column=3, row=5, sticky=(W, E))
-ttk.Label(mainframe, text='Integration Time / ms',
-          font=("Helvetica", 12)).grid(column=4, row=6, sticky=( E))
+ttk.Label(mainframe, text='Gate Time / ms',
+          font=("Helvetica", 12)).grid(column=4, row=6, sticky=(E))
+ttk.Label(mainframe, text='Select Device',
+          font=("Helvetica", 12)).grid(column=1, row=7, sticky=(W))
 
 
 
@@ -239,5 +275,8 @@ ttk.Label(mainframe, textvariable=counter_103, anchor=E,
 for child in mainframe.winfo_children():
     child.grid_configure(padx=10, pady=10)
 
+root.protocol("WM_DELETE_WINDOW",on_closing)
+
 # finally we run it!
 root.mainloop()
+
