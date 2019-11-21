@@ -82,9 +82,13 @@ def start_f(*args):
             Counter_loop.append(Counter)
             pattern_loop.extend(pattern)
             timestamp_loop.extend(timestamp)
+
         counter_00.set('{:6.1f}'.format(cnt1))
         counter_01.set('{:6.1f}'.format(cnt2))
         counter_12.set('{:6.1f}'.format(coincidence))
+        if cnt1*cnt2 != 0:
+            counter_ef1.set('{:6.1f}'.format(coincidence/cnt1*100))
+            counter_ef2.set('{:6.1f}'.format(coincidence/cnt2*100))
         root.update()
 
 # Stop querying the timestamp function, writes collected parsed timestamps into csv file.
@@ -240,6 +244,10 @@ counter_01 = StringVar()
 counter_01.set(format(0))
 counter_12 = StringVar()
 counter_12.set(format(0))
+counter_ef1 = StringVar()
+counter_ef1.set(format(0))
+counter_ef2 = StringVar()
+counter_ef2.set(format(0))
 
 # labels
 ttk.Label(mainframe, text='Gate Time /ms',
@@ -256,12 +264,20 @@ ttk.Label(mainframe, text='Channel 2',
           font=("Helvetica", 10)).grid(column=5, row=3, sticky=(E))
 ttk.Label(mainframe, text='Pairs',
           font=("Helvetica", 10)).grid(column=5, row=4, sticky=(E))
+ttk.Label(mainframe, text='Eff 1 %',
+          font=("Helvetica", 10)).grid(column=5, row=5, sticky=(E))
+ttk.Label(mainframe, text='Eff 2 %',
+          font=("Helvetica", 10)).grid(column=5, row=6, sticky=(E))
 ttk.Label(mainframe, textvariable=counter_00, width=7, anchor=E,
           font=("Helvetica", 10)).grid(column=6, row=2, sticky=(W, E))
 ttk.Label(mainframe, textvariable=counter_01, width=7, anchor=E,
           font=("Helvetica", 10)).grid(column=6, row=3, sticky=(W, E))
 ttk.Label(mainframe, textvariable=counter_12, width=7, anchor=E,
           font=("Helvetica", 10)).grid(column=6, row=4, sticky=(W, E))
+ttk.Label(mainframe, textvariable=counter_ef1, width=7, anchor=E,
+          font=("Helvetica", 10)).grid(column=6, row=5, sticky=(W, E))
+ttk.Label(mainframe, textvariable=counter_ef2, width=7, anchor=E,
+          font=("Helvetica", 10)).grid(column=6, row=6, sticky=(W, E))
 
 # Basic setup for the displayed graph.
 canvas = FigureCanvasTkAgg(fig, master=root)

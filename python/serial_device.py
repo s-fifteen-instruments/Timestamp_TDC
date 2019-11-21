@@ -35,6 +35,9 @@ class SerialDevice(serial.Serial):
         except SerialException:
             print('Connection failed')
 
+    def _closeport(self):
+        self.close()
+
     def _reset_buffers(self):
         self.reset_input_buffer()
         self.reset_output_buffer()
