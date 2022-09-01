@@ -5,4 +5,4 @@ For further information, go to the wiki page in this depository, the specificati
 
 Feel free to play with the code but please credit us if you are publishing your own version.
 
-#Newer GUI released 2022 at https://github.com/s-fifteen-instruments/tdc1_GUI
+# Newer GUI released 2022 at https://github.com/s-fifteen-instruments/tdc1_GUI
